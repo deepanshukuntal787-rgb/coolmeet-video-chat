@@ -86,12 +86,12 @@ export default function VideoChat() {
         if (remoteRef.current) remoteRef.current.srcObject = e.streams[0]; 
       };
       
-      pc.onicecandidate = e => { if (e.candidate) socket.emit("ice-candidate", { roomId: data.roomId, candidate: e.candidate }); };
+      pc.onicecandidate = e => { if (e.candidate) socket.emit("ice-candidate", { roomId: data.peerId, candidate: e.candidate }); };
 
       if (data.initiator) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        socket.emit("offer", { roomId: data.roomId, sdp: pc.localDescription });
+        socket.emit("offer", { roomId: data.peerId, sdp: pc.localDescription }); // Send directly to peer's socket ID
       }
     });
 
@@ -100,7 +100,7 @@ export default function VideoChat() {
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
       const ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
-      socket.emit("answer", { roomId: useStore.getState().roomId, sdp: pc.localDescription });
+      socket.emit("answer", { roomId: useStore.getState().peerId, sdp: pc.localDescription });
       
       // Flush ICE queue
       for (const cand of iceQueue.current) await pc.addIceCandidate(new RTCIceCandidate(cand));
@@ -136,8 +136,8 @@ export default function VideoChat() {
   const doStart = useCallback(() => { if (socket) { setMatchmaking(true); socket.emit("start_matchmaking"); } }, [socket]);
   const doStop  = useCallback(() => { if (socket) { setMatchmaking(false); socket.emit("stop_matchmaking"); } }, [socket]);
   const doNext  = useCallback(() => {
-    const rid = useStore.getState().roomId;
-    if (socket && rid) socket.emit("leave_room", rid);
+    const state = useStore.getState();
+    if (socket && state.roomId) socket.emit("leave_room", state.roomId);
     if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
     if (remoteRef.current) remoteRef.current.srcObject = null;
     remoteStreamRef.current = null;
