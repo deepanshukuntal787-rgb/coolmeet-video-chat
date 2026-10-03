@@ -43,7 +43,7 @@ export default function VideoChat() {
   }, [matchFound]);
 
   useEffect(() => {
-    const s = io("http://localhost:4000");
+    const s = io("https://coolmeet-video-chat.onrender.com");
     setSocket(s);
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(stream => {
