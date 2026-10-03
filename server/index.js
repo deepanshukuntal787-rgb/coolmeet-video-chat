@@ -51,7 +51,15 @@ setInterval(async () => {
 
       if (user1 && user2) {
         const roomId = uuidv4();
-        
+
+        // Join both sockets to the room SERVER-SIDE before notifying clients.
+        // This eliminates the race condition where an offer could arrive before
+        // the non-initiator has emitted join_room from the client.
+        const socket1 = io.sockets.sockets.get(user1);
+        const socket2 = io.sockets.sockets.get(user2);
+        if (socket1) socket1.join(roomId);
+        if (socket2) socket2.join(roomId);
+
         // Notify both users that a match was found
         io.to(user1).emit("match_found", { roomId, peerId: user2, initiator: true });
         io.to(user2).emit("match_found", { roomId, peerId: user1, initiator: false });

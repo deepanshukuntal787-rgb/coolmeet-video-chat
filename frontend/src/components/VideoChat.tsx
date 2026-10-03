@@ -11,22 +11,33 @@ const ICE = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" },
+    { urls: "stun:stun.relay.metered.ca:80" },
     {
-      urls: "turn:openrelay.metered.ca:80",
+      urls: "turn:global.relay.metered.ca:80",
       username: "openrelayproject",
-      credential: "openrelayproject"
+      credential: "openrelayproject",
     },
     {
-      urls: "turn:openrelay.metered.ca:443",
+      urls: "turn:global.relay.metered.ca:80?transport=tcp",
       username: "openrelayproject",
-      credential: "openrelayproject"
+      credential: "openrelayproject",
     },
     {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      urls: "turn:global.relay.metered.ca:443",
       username: "openrelayproject",
-      credential: "openrelayproject"
-    }
-  ] 
+      credential: "openrelayproject",
+    },
+    {
+      urls: "turns:global.relay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject",
+    },
+  ],
+  iceCandidatePoolSize: 10,
 };
 
 interface Msg { id: string; text: string; fromMe: boolean; }
