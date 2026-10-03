@@ -92,6 +92,12 @@ export default function VideoChat() {
 
       const pc = new RTCPeerConnection(ICE);
       pcRef.current = pc;
+      
+      pc.oniceconnectionstatechange = () => {
+        const el = document.getElementById("webrtc-state");
+        if (el) el.innerText = pc.iceConnectionState;
+      };
+
       if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
       
       pc.ontrack = e => { 
@@ -232,7 +238,7 @@ export default function VideoChat() {
                 style={{ background: "rgba(0,0,0,0.55)", border: "1px solid rgba(255,255,255,0.08)" }}
               >
                 {matchFound ? (
-                  <><span className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_5px_#4ade80] animate-pulse" /><span className="text-white/80">{fmt(duration)}</span></>
+                  <><span className="w-1.5 h-1.5 rounded-full bg-green-400 shadow-[0_0_5px_#4ade80] animate-pulse" /><span className="text-white/80" id="webrtc-state">Connecting...</span> <span className="text-white/80">{fmt(duration)}</span></>
                 ) : (
                   <span className="text-white/25">Stranger</span>
                 )}
