@@ -11,9 +11,21 @@ const ICE = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" }
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelayproject",
+      credential: "openrelayproject"
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelayproject",
+      credential: "openrelayproject"
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelayproject",
+      credential: "openrelayproject"
+    }
   ] 
 };
 
@@ -49,6 +61,7 @@ export default function VideoChat() {
       // If remote stream arrived before video element mounted, attach it now
       if (remoteRef.current && remoteStreamRef.current) {
         remoteRef.current.srcObject = remoteStreamRef.current;
+        remoteRef.current.play().catch(e => console.log("Play error:", e));
       }
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -83,7 +96,10 @@ export default function VideoChat() {
       
       pc.ontrack = e => { 
         remoteStreamRef.current = e.streams[0];
-        if (remoteRef.current) remoteRef.current.srcObject = e.streams[0]; 
+        if (remoteRef.current) {
+          remoteRef.current.srcObject = e.streams[0]; 
+          remoteRef.current.play().catch(err => console.log("Play error:", err));
+        }
       };
       
       pc.onicecandidate = e => { if (e.candidate) socket.emit("ice-candidate", { roomId: data.peerId, candidate: e.candidate }); };
