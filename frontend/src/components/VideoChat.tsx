@@ -41,6 +41,7 @@ export default function VideoChat() {
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const iceQueue = useRef<RTCIceCandidateInit[]>([]);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -74,6 +75,7 @@ export default function VideoChat() {
     setSocket(s);
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(stream => {
+        localStreamRef.current = stream;
         setLocalStream(stream);
         if (localRef.current) localRef.current.srcObject = stream;
       }).catch(console.error);
@@ -98,7 +100,13 @@ export default function VideoChat() {
         if (el) el.innerText = pc.iceConnectionState;
       };
 
-      if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+      // Use ref so we always get the latest stream (state closures can be stale)
+      const stream = localStreamRef.current;
+      if (stream) {
+        stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      } else {
+        console.warn("No local stream available when match found!");
+      }
       
       pc.ontrack = e => { 
         remoteStreamRef.current = e.streams[0];
@@ -108,12 +116,13 @@ export default function VideoChat() {
         }
       };
       
-      pc.onicecandidate = e => { if (e.candidate) socket.emit("ice-candidate", { roomId: data.peerId, candidate: e.candidate }); };
+      // Use actual roomId for signaling (consistent with server routing)
+      pc.onicecandidate = e => { if (e.candidate) socket.emit("ice-candidate", { roomId: data.roomId, candidate: e.candidate }); };
 
       if (data.initiator) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        socket.emit("offer", { roomId: data.peerId, sdp: pc.localDescription }); // Send directly to peer's socket ID
+        socket.emit("offer", { roomId: data.roomId, sdp: pc.localDescription });
       }
     });
 
@@ -122,7 +131,8 @@ export default function VideoChat() {
       await pc.setRemoteDescription(new RTCSessionDescription(sdp));
       const ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
-      socket.emit("answer", { roomId: useStore.getState().peerId, sdp: pc.localDescription });
+      // Use roomId (not peerId) for consistent server-side routing
+      socket.emit("answer", { roomId: useStore.getState().roomId, sdp: pc.localDescription });
       
       // Flush ICE queue
       for (const cand of iceQueue.current) await pc.addIceCandidate(new RTCIceCandidate(cand));
@@ -153,7 +163,7 @@ export default function VideoChat() {
     });
 
     return () => { ["match_found","offer","answer","ice-candidate","peer_left","chat_message"].forEach(e => socket.off(e)); };
-  }, [socket, localStream]);
+  }, [socket]); // Don't depend on localStream — we use localStreamRef to avoid stale closures
 
   const doStart = useCallback(() => { if (socket) { setMatchmaking(true); socket.emit("start_matchmaking"); } }, [socket]);
   const doStop  = useCallback(() => { if (socket) { setMatchmaking(false); socket.emit("stop_matchmaking"); } }, [socket]);
