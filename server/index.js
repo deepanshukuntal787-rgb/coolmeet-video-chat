@@ -18,11 +18,18 @@ const io = new Server(server, {
   },
 });
 
-const redisHost = process.env.REDIS_HOST || "127.0.0.1";
-const redisPort = parseInt(process.env.REDIS_PORT || "6379", 10);
-const pubClient = new Redis({ host: redisHost, port: redisPort });
-const subClient = pubClient.duplicate();
-const redisClient = new Redis({ host: redisHost, port: redisPort });
+let pubClient, subClient, redisClient;
+if (process.env.REDIS_URL) {
+  pubClient = new Redis(process.env.REDIS_URL);
+  subClient = new Redis(process.env.REDIS_URL);
+  redisClient = new Redis(process.env.REDIS_URL);
+} else {
+  const redisHost = process.env.REDIS_HOST || "127.0.0.1";
+  const redisPort = parseInt(process.env.REDIS_PORT || "6379", 10);
+  pubClient = new Redis({ host: redisHost, port: redisPort });
+  subClient = new Redis({ host: redisHost, port: redisPort });
+  redisClient = new Redis({ host: redisHost, port: redisPort });
+}
 
 io.adapter(createAdapter(pubClient, subClient));
 
