@@ -26,6 +26,8 @@ export default function VideoChat() {
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
+  const iceQueue = useRef<RTCIceCandidateInit[]>([]);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
 
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -44,6 +46,10 @@ export default function VideoChat() {
     if (matchFound) {
       setDuration(0);
       timerRef.current = setInterval(() => setDuration(d => d + 1), 1000);
+      // If remote stream arrived before video element mounted, attach it now
+      if (remoteRef.current && remoteStreamRef.current) {
+        remoteRef.current.srcObject = remoteStreamRef.current;
+      }
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
     }
@@ -65,6 +71,8 @@ export default function VideoChat() {
     if (!socket) return;
 
     socket.on("match_found", async (data: { roomId: string; peerId: string; initiator: boolean }) => {
+      iceQueue.current = [];
+      remoteStreamRef.current = null;
       setMatch(data.roomId, data.peerId);
       socket.emit("join_room", data.roomId);
       setMsgs([{ id: "sys", text: "You are now connected with a stranger.", fromMe: false }]);
@@ -72,7 +80,12 @@ export default function VideoChat() {
       const pc = new RTCPeerConnection(ICE);
       pcRef.current = pc;
       if (localStream) localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-      pc.ontrack = e => { if (remoteRef.current) remoteRef.current.srcObject = e.streams[0]; };
+      
+      pc.ontrack = e => { 
+        remoteStreamRef.current = e.streams[0];
+        if (remoteRef.current) remoteRef.current.srcObject = e.streams[0]; 
+      };
+      
       pc.onicecandidate = e => { if (e.candidate) socket.emit("ice-candidate", { roomId: data.roomId, candidate: e.candidate }); };
 
       if (data.initiator) {
@@ -88,10 +101,30 @@ export default function VideoChat() {
       const ans = await pc.createAnswer();
       await pc.setLocalDescription(ans);
       socket.emit("answer", { roomId: useStore.getState().roomId, sdp: pc.localDescription });
+      
+      // Flush ICE queue
+      for (const cand of iceQueue.current) await pc.addIceCandidate(new RTCIceCandidate(cand));
+      iceQueue.current = [];
     });
 
-    socket.on("answer", async ({ sdp }) => { await pcRef.current?.setRemoteDescription(new RTCSessionDescription(sdp)); });
-    socket.on("ice-candidate", async ({ candidate }) => { await pcRef.current?.addIceCandidate(new RTCIceCandidate(candidate)); });
+    socket.on("answer", async ({ sdp }) => { 
+      const pc = pcRef.current; if (!pc) return;
+      await pc.setRemoteDescription(new RTCSessionDescription(sdp)); 
+      
+      // Flush ICE queue
+      for (const cand of iceQueue.current) await pc.addIceCandidate(new RTCIceCandidate(cand));
+      iceQueue.current = [];
+    });
+    
+    socket.on("ice-candidate", async ({ candidate }) => { 
+      const pc = pcRef.current; if (!pc) return;
+      if (pc.remoteDescription) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate)); 
+      } else {
+        iceQueue.current.push(candidate);
+      }
+    });
+    
     socket.on("peer_left", () => doNext());
     socket.on("chat_message", ({ text }: { text: string }) => {
       setMsgs(p => [...p, { id: Date.now().toString(), text, fromMe: false }]);
@@ -107,6 +140,7 @@ export default function VideoChat() {
     if (socket && rid) socket.emit("leave_room", rid);
     if (pcRef.current) { pcRef.current.close(); pcRef.current = null; }
     if (remoteRef.current) remoteRef.current.srcObject = null;
+    remoteStreamRef.current = null;
     clearMatch(); setMsgs([]);
     if (socket) { setMatchmaking(true); socket.emit("start_matchmaking"); }
   }, [socket]);
