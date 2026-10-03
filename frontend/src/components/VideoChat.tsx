@@ -50,7 +50,7 @@ export default function VideoChat() {
         setLocalStream(stream);
         if (localRef.current) localRef.current.srcObject = stream;
       }).catch(console.error);
-    return () => s.disconnect();
+    return () => { s.disconnect(); };
   }, []);
 
   useEffect(() => {
