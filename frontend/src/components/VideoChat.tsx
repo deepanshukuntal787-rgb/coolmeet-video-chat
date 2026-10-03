@@ -7,37 +7,32 @@ import { useStore } from "@/store/useStore";
 import { Send, SkipForward, Globe, X, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import Background from "@/components/Background";
 
-const ICE = { 
+const ICE: RTCConfiguration = {
+  bundlePolicy: "max-bundle",
+  rtcpMuxPolicy: "require",
+  iceCandidatePoolSize: 10,
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
-    { urls: "stun:stun.cloudflare.com:3478" },
-    { urls: "stun:stun.relay.metered.ca:80" },
+    // Google STUN — always reachable, no auth needed
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+    { urls: ["stun:stun2.l.google.com:19302", "stun:stun3.l.google.com:19302", "stun:stun4.l.google.com:19302"] },
+    // Metered.ca free-demo TURN — openrelay domain accepts these demo creds
     {
-      urls: "turn:global.relay.metered.ca:80",
+      urls: [
+        "turn:openrelay.metered.ca:80",
+        "turn:openrelay.metered.ca:80?transport=tcp",
+        "turn:openrelay.metered.ca:443",
+        "turn:openrelay.metered.ca:443?transport=tcp",
+      ],
       username: "openrelayproject",
       credential: "openrelayproject",
     },
+    // FreeTURN — secondary free TURN relay
     {
-      urls: "turn:global.relay.metered.ca:80?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turn:global.relay.metered.ca:443",
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    {
-      urls: "turns:global.relay.metered.ca:443?transport=tcp",
-      username: "openrelayproject",
-      credential: "openrelayproject",
+      urls: ["turn:freeturn.net:3478", "turns:freeturn.net:5349"],
+      username: "free",
+      credential: "free",
     },
   ],
-  iceCandidatePoolSize: 10,
 };
 
 interface Msg { id: string; text: string; fromMe: boolean; }
@@ -105,35 +100,59 @@ export default function VideoChat() {
 
       const pc = new RTCPeerConnection(ICE);
       pcRef.current = pc;
-      
+
+      // Monitor ICE state — restart automatically on failure
       pc.oniceconnectionstatechange = () => {
+        const state = pc.iceConnectionState;
+        console.log("[ICE]", state);
         const el = document.getElementById("webrtc-state");
-        if (el) el.innerText = pc.iceConnectionState;
+        if (el) el.innerText = state;
+        if (state === "failed") {
+          console.warn("[ICE] failed → restarting");
+          pc.restartIce(); // triggers onnegotiationneeded on initiator
+        }
       };
 
-      // Use ref so we always get the latest stream (state closures can be stale)
+      // Remote track → show in video element
+      pc.ontrack = e => {
+        remoteStreamRef.current = e.streams[0];
+        if (remoteRef.current) {
+          remoteRef.current.srcObject = e.streams[0];
+          remoteRef.current.play().catch(err => console.log("[play]", err));
+        }
+      };
+
+      // Trickle ICE → forward candidates to peer via server
+      pc.onicecandidate = e => {
+        if (e.candidate) socket.emit("ice-candidate", { roomId: data.roomId, candidate: e.candidate });
+      };
+
+      // Initiator: use onnegotiationneeded so ICE-restart re-offers work automatically
+      if (data.initiator) {
+        let negotiating = false;
+        pc.onnegotiationneeded = async () => {
+          if (negotiating || pc.signalingState !== "stable") return;
+          negotiating = true;
+          try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            socket.emit("offer", { roomId: data.roomId, sdp: pc.localDescription });
+            console.log("[SDP] offer sent");
+          } catch (err) {
+            console.error("[SDP] offer error", err);
+          } finally {
+            negotiating = false;
+          }
+        };
+      }
+
+      // Add local tracks AFTER setting up handlers — triggers onnegotiationneeded on initiator
       const stream = localStreamRef.current;
       if (stream) {
         stream.getTracks().forEach(t => pc.addTrack(t, stream));
+        console.log("[tracks] added", stream.getTracks().map(t => t.kind));
       } else {
-        console.warn("No local stream available when match found!");
-      }
-      
-      pc.ontrack = e => { 
-        remoteStreamRef.current = e.streams[0];
-        if (remoteRef.current) {
-          remoteRef.current.srcObject = e.streams[0]; 
-          remoteRef.current.play().catch(err => console.log("Play error:", err));
-        }
-      };
-      
-      // Use actual roomId for signaling (consistent with server routing)
-      pc.onicecandidate = e => { if (e.candidate) socket.emit("ice-candidate", { roomId: data.roomId, candidate: e.candidate }); };
-
-      if (data.initiator) {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        socket.emit("offer", { roomId: data.roomId, sdp: pc.localDescription });
+        console.warn("[tracks] no local stream at match time!");
       }
     });
 
