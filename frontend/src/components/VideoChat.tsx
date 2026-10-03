@@ -7,7 +7,15 @@ import { useStore } from "@/store/useStore";
 import { Send, SkipForward, Globe, X, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import Background from "@/components/Background";
 
-const ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+const ICE = { 
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" }
+  ] 
+};
 
 interface Msg { id: string; text: string; fromMe: boolean; }
 

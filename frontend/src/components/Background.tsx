@@ -26,66 +26,27 @@ export default function Background() {
   }, []);
 
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 bg-[#04040A]">
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-[#04040A]">
       
-      {/* Beautiful Lo-Fi Cyberpunk Background with Breathing Effect */}
-      <motion.div 
-        className="absolute inset-[-5%] bg-cover bg-center bg-no-repeat mix-blend-screen opacity-50"
+      {/* Static Beautiful Lo-Fi Cyberpunk Background (Removed animations and mix-blend to fix mobile flickering) */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30"
         style={{ backgroundImage: 'url("/lofi_couple_bg.jpg")' }}
-        animate={{ scale: [1, 1.05, 1], rotate: [0, 0.5, 0] }}
-        transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
       />
 
       {/* Dark gradient overlay for extreme contrast and UI legibility */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#060610]/90 via-[#060610]/50 to-[#060610]/95" />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#FF3CAC]/10 via-transparent to-transparent opacity-50" />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#060610]/95 via-[#060610]/60 to-[#060610]/95" />
+      <div className="absolute inset-0 bg-gradient-to-t from-[#FF3CAC]/10 via-transparent to-transparent opacity-30" />
 
-      {/* Ambient Large Gradient Orbs (Pulse Slowly) */}
-      <div className="absolute inset-0 mix-blend-screen">
-        <motion.div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-[#FF6B35] opacity-[0.03] blur-[100px]" 
-          animate={{ scale: [1, 1.2, 1], opacity: [0.03, 0.05, 0.03] }} transition={{ duration: 15, repeat: Infinity }} />
-        <motion.div className="absolute top-[10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-[#7B2FBE] opacity-[0.03] blur-[120px]"
-          animate={{ scale: [1, 1.3, 1], opacity: [0.03, 0.06, 0.03] }} transition={{ duration: 18, repeat: Infinity, delay: 2 }} />
-        <motion.div className="absolute bottom-[-10%] left-[20%] w-[50vw] h-[50vw] rounded-full bg-[#00D4FF] opacity-[0.04] blur-[100px]"
-          animate={{ scale: [1, 1.4, 1], opacity: [0.04, 0.07, 0.04] }} transition={{ duration: 20, repeat: Infinity, delay: 5 }} />
-      </div>
-
-      {/* Cyber Dust Particles (Rising Embers) */}
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          className="absolute"
-          style={{
-            width: p.size * 0.7, // Slightly smaller for elegance
-            height: p.size * 0.7,
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            backgroundColor: p.color,
-            borderRadius: "50%",
-            filter: `blur(${p.blur * 0.8}px)`,
-            opacity: 0.15,
-            mixBlendMode: "screen",
-            boxShadow: `0 0 ${p.size}px ${p.color}`, // Added inner glow
-          }}
-          animate={{
-            y: [0, -300 - Math.random() * 200], // Always float upwards like embers
-            x: [0, Math.random() * 100 - 50, 0], // Gentle sway
-            scale: [0, 1.5, 0], // Fade in and out
-          }}
-          transition={{
-            duration: p.duration * 0.8,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: p.delay,
-          }}
-        />
-      ))}
+      {/* Static Ambient Large Gradient Orbs (No animations or heavy blur to save mobile GPU) */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-[#FF6B35] opacity-[0.04]" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full bg-[#00D4FF] opacity-[0.04]" />
       
-      {/* Animated Cyber Grid */}
-      <motion.div className="absolute inset-[-100%] opacity-[0.08]" 
+      {/* Static Cyber Grid */}
+      <div className="absolute inset-[-100%] opacity-[0.05]" 
         style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)`,
-          backgroundSize: "80px 80px",
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+          backgroundSize: "60px 60px",
           transformOrigin: "center center",
           transform: "perspective(500px) rotateX(60deg) translateY(-100px)",
         }} 
