@@ -18,7 +18,7 @@ app.get("/", (req, res) => {
 // Returns fresh ICE server config including time-limited TURN credentials.
 // Frontend calls this before creating each RTCPeerConnection.
 app.get("/api/ice-servers", async (req, res) => {
-  const apiKey = process.env.METERED_API_KEY;
+  const apiKey = process.env.METERED_API_KEY || "WKryBsnLorHB6NkSD4fSflv_PuDuBmP90dsEFtscb8kZcKZy";
 
   // Always include STUN as baseline
   const iceServers = [
