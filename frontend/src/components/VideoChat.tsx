@@ -77,6 +77,11 @@ export default function VideoChat() {
       })
       .catch(err => console.warn("[ICE config] fetch failed, using fallback STUN", err));
 
+    // Keep Render free-tier server awake by pinging the root endpoint
+    const keepAlive = setInterval(() => {
+      fetch(SIGNAL).catch(() => {});
+    }, 60000);
+
     const s = io(SIGNAL);
     setSocket(s);
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
@@ -85,7 +90,10 @@ export default function VideoChat() {
         setLocalStream(stream);
         if (localRef.current) localRef.current.srcObject = stream;
       }).catch(console.error);
-    return () => { s.disconnect(); };
+    return () => { 
+      clearInterval(keepAlive);
+      s.disconnect(); 
+    };
   }, []);
 
   useEffect(() => {
