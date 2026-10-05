@@ -7,31 +7,16 @@ import { useStore } from "@/store/useStore";
 import { Send, SkipForward, Globe, X, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import Background from "@/components/Background";
 
-const ICE: RTCConfiguration = {
+const SIGNAL = "https://coolmeet-video-chat.onrender.com";
+
+// Fallback ICE config used if the server endpoint is unreachable
+const FALLBACK_ICE: RTCConfiguration = {
   bundlePolicy: "max-bundle",
   rtcpMuxPolicy: "require",
   iceCandidatePoolSize: 10,
   iceServers: [
-    // Google STUN — always reachable, no auth needed
     { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
-    { urls: ["stun:stun2.l.google.com:19302", "stun:stun3.l.google.com:19302", "stun:stun4.l.google.com:19302"] },
-    // Metered.ca free-demo TURN — openrelay domain accepts these demo creds
-    {
-      urls: [
-        "turn:openrelay.metered.ca:80",
-        "turn:openrelay.metered.ca:80?transport=tcp",
-        "turn:openrelay.metered.ca:443",
-        "turn:openrelay.metered.ca:443?transport=tcp",
-      ],
-      username: "openrelayproject",
-      credential: "openrelayproject",
-    },
-    // FreeTURN — secondary free TURN relay
-    {
-      urls: ["turn:freeturn.net:3478", "turns:freeturn.net:5349"],
-      username: "free",
-      credential: "free",
-    },
+    { urls: ["stun:stun2.l.google.com:19302", "stun:stun3.l.google.com:19302"] },
   ],
 };
 
@@ -48,6 +33,7 @@ export default function VideoChat() {
   const iceQueue = useRef<RTCIceCandidateInit[]>([]);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const iceConfigRef = useRef<RTCConfiguration>(FALLBACK_ICE);
 
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
@@ -77,7 +63,21 @@ export default function VideoChat() {
   }, [matchFound]);
 
   useEffect(() => {
-    const s = io("https://coolmeet-video-chat.onrender.com");
+    // Fetch fresh ICE/TURN credentials from our server on startup
+    fetch(`${SIGNAL}/api/ice-servers`)
+      .then(r => r.json())
+      .then(({ iceServers }) => {
+        iceConfigRef.current = {
+          bundlePolicy: "max-bundle",
+          rtcpMuxPolicy: "require",
+          iceCandidatePoolSize: 10,
+          iceServers,
+        };
+        console.log("[ICE config] loaded", iceServers.length, "servers");
+      })
+      .catch(err => console.warn("[ICE config] fetch failed, using fallback STUN", err));
+
+    const s = io(SIGNAL);
     setSocket(s);
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(stream => {
@@ -98,7 +98,7 @@ export default function VideoChat() {
       socket.emit("join_room", data.roomId);
       setMsgs([{ id: "sys", text: "You are now connected with a stranger.", fromMe: false }]);
 
-      const pc = new RTCPeerConnection(ICE);
+      const pc = new RTCPeerConnection(iceConfigRef.current);
       pcRef.current = pc;
 
       // Monitor ICE state — restart automatically on failure

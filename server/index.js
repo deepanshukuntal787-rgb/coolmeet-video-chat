@@ -15,6 +15,36 @@ app.get("/", (req, res) => {
   res.json({ status: "ok", service: "CoolMeet signaling server", uptime: process.uptime() });
 });
 
+// Returns fresh ICE server config including time-limited TURN credentials.
+// Frontend calls this before creating each RTCPeerConnection.
+app.get("/api/ice-servers", async (req, res) => {
+  const apiKey = process.env.METERED_API_KEY;
+
+  // Always include STUN as baseline
+  const iceServers = [
+    { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+    { urls: ["stun:stun2.l.google.com:19302", "stun:stun3.l.google.com:19302"] },
+  ];
+
+  if (apiKey) {
+    try {
+      const response = await fetch(
+        `https://coolmeet.metered.live/api/v1/turn/credentials?apiKey=${apiKey}`
+      );
+      if (response.ok) {
+        const turnServers = await response.json();
+        iceServers.push(...turnServers);
+      }
+    } catch (err) {
+      console.error("Failed to fetch TURN credentials:", err.message);
+    }
+  } else {
+    console.warn("METERED_API_KEY not set — TURN relay disabled, STUN only");
+  }
+
+  res.json({ iceServers });
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
