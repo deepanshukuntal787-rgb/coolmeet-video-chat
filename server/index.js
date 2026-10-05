@@ -111,15 +111,23 @@ io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
   socket.on("start_matchmaking", async () => {
-    // Add user to the waiting queue
-    await redisClient.lpush(WAITING_USERS_KEY, socket.id);
-    console.log(`${socket.id} joined the matchmaking queue`);
+    try {
+      // Add user to the waiting queue
+      await redisClient.lpush(WAITING_USERS_KEY, socket.id);
+      console.log(`${socket.id} joined the matchmaking queue`);
+    } catch (err) {
+      console.error("Error in start_matchmaking:", err.message);
+    }
   });
 
   socket.on("stop_matchmaking", async () => {
-    // Remove user from queue
-    await redisClient.lrem(WAITING_USERS_KEY, 0, socket.id);
-    console.log(`${socket.id} left the matchmaking queue`);
+    try {
+      // Remove user from queue
+      await redisClient.lrem(WAITING_USERS_KEY, 0, socket.id);
+      console.log(`${socket.id} left the matchmaking queue`);
+    } catch (err) {
+      console.error("Error in stop_matchmaking:", err.message);
+    }
   });
 
   socket.on("join_room", (roomId) => {
@@ -163,7 +171,11 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", async () => {
     console.log("User disconnected:", socket.id);
-    await redisClient.lrem(WAITING_USERS_KEY, 0, socket.id);
+    try {
+      await redisClient.lrem(WAITING_USERS_KEY, 0, socket.id);
+    } catch (err) {
+      console.error("Error in disconnect:", err.message);
+    }
   });
 });
 
