@@ -54,17 +54,18 @@ const io = new Server(server, {
 });
 
 let pubClient, subClient, redisClient;
-if (process.env.REDIS_URL) {
-  pubClient = new Redis(process.env.REDIS_URL);
-  subClient = new Redis(process.env.REDIS_URL);
-  redisClient = new Redis(process.env.REDIS_URL);
-} else {
-  const redisHost = process.env.REDIS_HOST || "127.0.0.1";
-  const redisPort = parseInt(process.env.REDIS_PORT || "6379", 10);
-  pubClient = new Redis({ host: redisHost, port: redisPort });
-  subClient = new Redis({ host: redisHost, port: redisPort });
-  redisClient = new Redis({ host: redisHost, port: redisPort });
-}
+const upstashUrl = process.env.REDIS_URL || "rediss://default:gQAAAAAAAu23AAIgcDFlM2U5ZTI2ZDcxYzY0MmIwOTRiYTA3ZDU4YTFkN2U0MQ@internal-muskrat-191927.upstash.io:6379";
+
+// Use Upstash URL + required TLS options for ioredis
+pubClient = new Redis(upstashUrl, { tls: { rejectUnauthorized: false } });
+subClient = new Redis(upstashUrl, { tls: { rejectUnauthorized: false } });
+redisClient = new Redis(upstashUrl, { tls: { rejectUnauthorized: false } });
+
+// Add basic error handlers to prevent the process from crashing
+const handleRedisError = (err) => console.error("Redis Error:", err.message);
+pubClient.on("error", handleRedisError);
+subClient.on("error", handleRedisError);
+redisClient.on("error", handleRedisError);
 
 io.adapter(createAdapter(pubClient, subClient));
 
